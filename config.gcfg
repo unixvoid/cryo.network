@@ -1,5 +1,5 @@
 [cryo]
-	loglevel	= "debug"
+	loglevel	= "info"
 	port		= 53
 	domainname	= "cryo.network"
 	defaultaddress	= "127.0.0.1"
