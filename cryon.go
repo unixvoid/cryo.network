@@ -9,21 +9,32 @@ import (
 
 	"github.com/miekg/dns"
 	"github.com/unixvoid/glogger"
+	"gopkg.in/gcfg.v1"
 )
 
+type Config struct {
+	Cryo struct {
+		Loglevel       string
+		Port           int
+		DomainName     string
+		DefaultAddress string
+		DefaultTTL     uint32
+	}
+}
+
 var (
-	domainName = "cryo.network"
+	config = Config{}
 )
 
 func main() {
-	initLogger("debug")
+	readConf()
+	initLogger(config.Cryo.Loglevel)
 	// format the string to be :port
-	port := 8053
-	fPort := fmt.Sprint(":", port)
+	fPort := fmt.Sprint(":", config.Cryo.Port)
 
 	udpServer := &dns.Server{Addr: fPort, Net: "udp"}
 	tcpServer := &dns.Server{Addr: fPort, Net: "tcp"}
-	glogger.Info.Println("started server on", port)
+	glogger.Info.Println("started server on", config.Cryo.Port)
 	dns.HandleFunc(".", func(w dns.ResponseWriter, req *dns.Msg) {
 		route(w, req)
 	})
@@ -32,6 +43,14 @@ func main() {
 		glogger.Error.Println(udpServer.ListenAndServe())
 	}()
 	glogger.Error.Println(tcpServer.ListenAndServe())
+}
+
+func readConf() {
+	// init config file
+	err := gcfg.ReadFileInto(&config, "config.gcfg")
+	if err != nil {
+		panic(fmt.Sprintf("Could not load config.gcfg, error: %s\n", err))
+	}
 }
 
 func initLogger(logLevel string) {
@@ -59,7 +78,7 @@ func resolve(w dns.ResponseWriter, req *dns.Msg) {
 
 	// craft response
 	rr := new(dns.A)
-	rr.Hdr = dns.RR_Header{Name: hostname, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: 0}
+	rr.Hdr = dns.RR_Header{Name: hostname, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: config.Cryo.DefaultTTL}
 	addr := strings.TrimSuffix(domain, "\n")
 	rr.A = net.ParseIP(addr)
 
@@ -75,8 +94,8 @@ func resolve(w dns.ResponseWriter, req *dns.Msg) {
 
 func parseHostname(hostname string) string {
 	// we expect at least domainName at the end. parse it out
-	if strings.Contains(hostname, domainName) {
-		parsedHostname := strings.Replace(hostname, fmt.Sprintf("%s.", domainName), "", -1)
+	if strings.Contains(hostname, config.Cryo.DomainName) {
+		parsedHostname := strings.Replace(hostname, fmt.Sprintf("%s.", config.Cryo.DomainName), "", -1)
 		glogger.Debug.Printf("parsedHostname: %s\n", parsedHostname)
 
 		// count the number of '.'s so we can only grab the ip from the end
@@ -86,7 +105,7 @@ func parseHostname(hostname string) string {
 		dotCount := strings.Count(parsedHostname, ".")
 		if dotCount < 4 {
 			glogger.Debug.Println("bad syntax, returning early")
-			return "127.0.0.1"
+			return config.Cryo.DefaultAddress
 		}
 		s := strings.Split(parsedHostname, ".")
 		ip := fmt.Sprintf("%s.%s.%s.%s", s[dotCount-4], s[dotCount-3], s[dotCount-2], s[dotCount-1])
@@ -94,6 +113,6 @@ func parseHostname(hostname string) string {
 		return ip
 	} else {
 		// the domain was not in the query, return home
-		return "127.0.0.1"
+		return config.Cryo.DefaultAddress
 	}
 }
