@@ -18,6 +18,8 @@ type Config struct {
 		Port           int
 		DomainName     string
 		DefaultAddress string
+		DefaultCname   string
+		DefaultAaaa    string
 		DefaultTTL     uint32
 	}
 }
@@ -36,7 +38,24 @@ func main() {
 	tcpServer := &dns.Server{Addr: fPort, Net: "tcp"}
 	glogger.Info.Println("started server on", config.Cryo.Port)
 	dns.HandleFunc(".", func(w dns.ResponseWriter, req *dns.Msg) {
-		route(w, req)
+
+		switch req.Question[0].Qtype {
+		case 1:
+			glogger.Debug.Println("'A' request recieved, continuing")
+			route(w, req)
+		case 5:
+			glogger.Debug.Println("Routing 'CNAME' request")
+			go cnameresolve(w, req)
+			break
+		case 28:
+			glogger.Debug.Println("Routing 'AAAA' request")
+			//go aaaaresolve(w, req)
+			break
+		default:
+			glogger.Debug.Println("Not 'A' request")
+			break
+		}
+
 	})
 
 	go func() {
@@ -73,7 +92,7 @@ func route(w dns.ResponseWriter, req *dns.Msg) {
 
 func resolve(w dns.ResponseWriter, req *dns.Msg) {
 	hostname := req.Question[0].Name
-	glogger.Debug.Println(hostname)
+	glogger.Cluster.Println(hostname)
 	domain := parseHostname(hostname)
 
 	// craft response
@@ -81,6 +100,50 @@ func resolve(w dns.ResponseWriter, req *dns.Msg) {
 	rr.Hdr = dns.RR_Header{Name: hostname, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: config.Cryo.DefaultTTL}
 	addr := strings.TrimSuffix(domain, "\n")
 	rr.A = net.ParseIP(addr)
+
+	// craft reply
+	rep := new(dns.Msg)
+	rep.SetReply(req)
+	rep.Answer = append(rep.Answer, rr)
+
+	// send it
+	w.WriteMsg(rep)
+	return
+}
+
+func cnameresolve(w dns.ResponseWriter, req *dns.Msg) {
+	hostname := req.Question[0].Name
+	glogger.Cluster.Println(hostname)
+	//domain := parseHostname(hostname)
+
+	// craft response
+	rr := new(dns.CNAME)
+	rr.Hdr = dns.RR_Header{Name: hostname, Rrtype: dns.TypeCNAME, Class: dns.ClassINET, Ttl: config.Cryo.DefaultTTL}
+	// return default cname
+	rr.Target = config.Cryo.DefaultCname
+
+	// craft reply
+	rep := new(dns.Msg)
+	rep.SetReply(req)
+	rep.Answer = append(rep.Answer, rr)
+
+	// send it
+	w.WriteMsg(rep)
+	return
+}
+
+func aaaaresolve(w dns.ResponseWriter, req *dns.Msg) {
+	hostname := req.Question[0].Name
+	glogger.Cluster.Println(hostname)
+	//domain := parseHostname(hostname)
+
+	// craft response
+	rr := new(dns.AAAA)
+	rr.Hdr = dns.RR_Header{Name: hostname, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: config.Cryo.DefaultTTL}
+	//addr := strings.TrimSuffix(lookup, "\n")
+	addr := strings.TrimSuffix(config.Cryo.DefaultAaaa, "\n")
+	rr.AAAA = net.ParseIP(addr)
+	// return default cname
 
 	// craft reply
 	rep := new(dns.Msg)
