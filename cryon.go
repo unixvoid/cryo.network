@@ -17,6 +17,7 @@ type Config struct {
 		Loglevel       string
 		Port           int
 		DomainName     string
+		DomainRedirect string
 		DefaultAddress string
 		DefaultCname   string
 		DefaultAaaa    string
@@ -141,8 +142,8 @@ func aaaaresolve(w dns.ResponseWriter, req *dns.Msg) {
 	rr := new(dns.AAAA)
 	rr.Hdr = dns.RR_Header{Name: hostname, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: config.Cryo.DefaultTTL}
 	//addr := strings.TrimSuffix(lookup, "\n")
-	addr := strings.TrimSuffix(config.Cryo.DefaultAaaa, "\n")
-	rr.AAAA = net.ParseIP(addr)
+	//addr := strings.TrimSuffix(config.Cryo.DefaultAaaa, "\n")
+	rr.AAAA = net.ParseIP(config.Cryo.DefaultAaaa)
 	// return default cname
 
 	// craft reply
@@ -158,6 +159,9 @@ func aaaaresolve(w dns.ResponseWriter, req *dns.Msg) {
 func parseHostname(hostname string) string {
 	// we expect at least domainName at the end. parse it out
 	if strings.Contains(hostname, config.Cryo.DomainName) {
+		if hostname == fmt.Sprintf("%s.", config.Cryo.DomainName) {
+			return config.Cryo.DomainRedirect
+		}
 		parsedHostname := strings.Replace(hostname, fmt.Sprintf("%s.", config.Cryo.DomainName), "", -1)
 		glogger.Debug.Printf("parsedHostname: %s\n", parsedHostname)
 

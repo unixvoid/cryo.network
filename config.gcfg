@@ -2,6 +2,7 @@
 	loglevel	= "debug"
 	port		= 8053
 	domainname	= "cryo.network"
+	domainredirect	= "52.41.183.54"
 	defaultaddress	= "127.0.0.1"
 	defaultcname	= "cryo.network."
 	defaultaaaa	= "fe80::a288:b4ff:fee4:7ca8"
