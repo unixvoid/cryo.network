@@ -33,6 +33,13 @@
             "protocol": "udp",
             "port": 53
         }
+        ],
+        "mountPoints": [
+        {
+            "name": "config",
+            "path": "/config.gcfg",
+            "readOnly": true
+        }
         ]
     },
     "annotations": [

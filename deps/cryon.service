@@ -1,0 +1,14 @@
+[Unit]
+Description=cryon
+
+[Service]
+ExecStart=/usr/bin/rkt run \
+	--insecure-options=all \
+        --volume config,kind=host,source=/cryo/cryon/config.gcfg \
+	--port=dns-tcp:53 \
+	--port=dns-udp:53 \
+	--debug \
+        unixvoid.com/cryon
+
+[Install]
+WantedBy=multi-user.target
