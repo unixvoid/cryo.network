@@ -49,7 +49,7 @@ travisaci:
 	chmod +x deps/run.sh
 	cp deps/run.sh stage.tmp/cryon-layout/rootfs/
 	sed -i "s/\$$DIFF/$(GIT_HASH)/g" stage.tmp/cryon-layout/rootfs/run.sh
-	#cp config.gcfg stage.tmp/cryon-layout/rootfs/
+	cp config.gcfg stage.tmp/cryon-layout/rootfs/
 	cp deps/manifest.json stage.tmp/cryon-layout/manifest
 	cd stage.tmp/ && \
 		../appc-v0.8.7/actool build cryon-layout cryon.aci && \
